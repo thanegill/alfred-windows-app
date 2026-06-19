@@ -1,38 +1,37 @@
-name: Create Alfred Workflow
+name: Release
 
+# Build a distributable .alfredworkflow and publish a GitHub release whenever a
+# v* tag is pushed. workflow_dispatch is kept so the packaging step can be run
+# manually for verification (it builds but does not release).
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
-  
+
+permissions:
+  contents: write
+
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Build Alfred Workflow
-      id: alfred_builder
-      uses: mperezi/build-alfred-workflow@v1
-      with:
-        workflow_dir: .
-        exclude_patterns: '.git/* .github/* .gitignore LICENSE'
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }}
-        draft: false
-        prerelease: false
-    - name: Upload Alfred Workflow
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.alfred_builder.outputs.workflow_file }}
-        asset_name: ${{ steps.alfred_builder.outputs.workflow_file }}
-        asset_content_type: application/zip
+      - uses: actions/checkout@v4
+
+      - name: Build .alfredworkflow
+        id: build
+        uses: mperezi/build-alfred-workflow@v1
+        with:
+          workflow_dir: .
+          # Ship only the workflow itself: keep info.plist, the Ruby scripts,
+          # icon.png, and README/LICENSE; drop dev-only and repo-meta files.
+          exclude_patterns: '.git/* .github/* .gitignore .DS_Store screenshot.png test/*'
+          # info.plist carries no version, so derive it from the tag (e.g. v0.2.0).
+          custom_version: ${{ github.ref_name }}
+
+      - name: Create release and attach workflow
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.build.outputs.workflow_file }}
+          generate_release_notes: true
