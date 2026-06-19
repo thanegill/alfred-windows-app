@@ -1,4 +1,6 @@
-winApp = '/Applications/Windows App.app/Contents/MacOS/Windows App'
+# Defaults to the real app; set WINDOWS_APP to point at any executable that
+# speaks the same `--script bookmark` interface (e.g. test/fake-windows-app).
+winApp = ENV.fetch('WINDOWS_APP', '/Applications/Windows App.app/Contents/MacOS/Windows App')
 
 def export_bookmark(query, winApp)
   begin

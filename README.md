@@ -29,3 +29,14 @@ Two parts:
 You can compile it from source or download the latest binary from the releases page.
 
 https://github.com/thanegill/alfred-windows-app/releases
+
+# Demo data
+Both scripts read the Windows App binary path from the `WINDOWS_APP` environment variable, defaulting to `/Applications/Windows App.app/Contents/MacOS/Windows App`. Point it at any executable that speaks the same `--script bookmark` interface.
+
+[`test/fake-windows-app`](test/fake-windows-app) is such a stand-in: it returns a fixed set of fake bookmarks, so you can demo or screenshot the workflow without exposing your real desktops. To use it, set `WINDOWS_APP` to its absolute path — either inline:
+
+```sh
+WINDOWS_APP="$PWD/test/fake-windows-app" ruby list_desktops.rb prod
+```
+
+or, to drive Alfred itself, add it under the workflow's **Configuration → Workflow Environment Variables** in Alfred, then remove it when you're done.

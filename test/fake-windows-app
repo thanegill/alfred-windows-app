@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# A stand-in for the real "Windows App" binary, used for demos and tests so the
+# workflow can run against fake bookmarks instead of your real desktops.
+#
+# Point the workflow at it by setting the WINDOWS_APP environment variable to
+# this file's absolute path (see README "Demo data"). It implements just enough
+# of the `--script bookmark` interface that list_desktops.rb and open_desktop.rb
+# use: `list` and `export <id> --uri`.
+set -euo pipefail
+
+# Fake bookmarks as "Name", UUID — the same CSV shape the real app emits.
+# Names share substrings so filtering is visible on camera (e.g. typing "prod").
+bookmark_list() {
+  cat <<'CSV'
+"Prod Web 01", 11111111-1111-1111-1111-111111111111
+"Prod Web 02", 22222222-2222-2222-2222-222222222222
+"Prod Web 03", 33333333-3333-3333-3333-333333333333
+"Prod DB", 44444444-4444-4444-4444-444444444444
+"Prod Cache", 55555555-5555-5555-5555-555555555555
+"Prod API", 66666666-6666-6666-6666-666666666666
+"Staging App", 77777777-7777-7777-7777-777777777777
+"Staging DB", 88888888-8888-8888-8888-888888888888
+"Staging Worker", 99999999-9999-9999-9999-999999999999
+"Dev Box", aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+"Dev DB", bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+"Build Server", cccccccc-cccc-cccc-cccc-cccccccccccc
+"CI Runner", dddddddd-dddd-dddd-dddd-dddddddddddd
+"QA Sandbox", eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee
+"Jump Host", ffffffff-ffff-ffff-ffff-ffffffffffff
+CSV
+}
+
+# A harmless dummy URI pointing at a clearly-fake host, so actioning a result
+# during a recording never touches a real machine.
+bookmark_export() {
+  echo "rdp://full%20address=s%3Ademo.example.com&username=s%3Ademo"
+}
+
+case "${1:-}" in
+  --script)
+    case "${2:-}" in
+      bookmark)
+        case "${3:-}" in
+          list) bookmark_list ;;
+          export) bookmark_export ;;
+          *) echo "fake-windows-app: unsupported bookmark command: ${3:-}" >&2; exit 1 ;;
+        esac
+        ;;
+      *) echo "fake-windows-app: unsupported module: ${2:-}" >&2; exit 1 ;;
+    esac
+    ;;
+  *) echo "fake-windows-app: expected --script, got: ${1:-}" >&2; exit 1 ;;
+esac
