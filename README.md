@@ -27,9 +27,7 @@ Two parts:
 - Add testing/linting
 
 ## Installation
-You can compile it from source or download the latest binary from the releases page.
-
-https://github.com/thanegill/alfred-windows-app/releases
+Download the latest [`Windows-App.alfredworkflow`](https://github.com/thanegill/alfred-windows-app/releases/latest) and double-click it to import into Alfred. It runs on the system Ruby that ships with macOS, so there's nothing to build.
 
 ## Demo data
 Both scripts read the Windows App binary path from the `WINDOWS_APP` environment variable, defaulting to `/Applications/Windows App.app/Contents/MacOS/Windows App`. Point it at any executable that speaks the same `--script bookmark` interface.
