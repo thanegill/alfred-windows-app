@@ -15,11 +15,13 @@
 				<integer>0</integer>
 				<key>modifiersubtext</key>
 				<string></string>
+				<key>vitoclose</key>
+				<false/>
 			</dict>
 		</array>
 	</dict>
 	<key>createdby</key>
-	<string>Frank Muller</string>
+	<string>thanegill</string>
 	<key>description</key>
 	<string>Open RDP Bookmark through Windows App (formerly Microsoft Remote Desktop)</string>
 	<key>disabled</key>
@@ -31,10 +33,16 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>concurrently</key>
+				<false/>
 				<key>escaping</key>
 				<integer>4</integer>
 				<key>script</key>
 				<string>ruby open_desktop.rb "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
 				<key>type</key>
 				<integer>0</integer>
 			</dict>
@@ -43,21 +51,41 @@
 			<key>uid</key>
 			<string>19428FFC-21DB-465A-8A78-8E6A67959A19</string>
 			<key>version</key>
-			<integer>0</integer>
+			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
 				<key>argumenttype</key>
 				<integer>1</integer>
 				<key>escaping</key>
 				<integer>4</integer>
 				<key>keyword</key>
 				<string>rdp</string>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<false/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
 				<key>runningsubtext</key>
 				<string>Loading...</string>
 				<key>script</key>
 				<string>ruby list_desktops.rb "{query}"</string>
+				<key>scriptargtype</key>
+				<integer>0</integer>
+				<key>scriptfile</key>
+				<string></string>
 				<key>subtext</key>
 				<string>Connect to a remote desktop</string>
 				<key>title</key>
@@ -72,7 +100,7 @@
 			<key>uid</key>
 			<string>89DFEA82-655D-4ED5-B86D-2506309ABEBD</string>
 			<key>version</key>
-			<integer>0</integer>
+			<integer>3</integer>
 		</dict>
 	</array>
 	<key>readme</key>
@@ -81,16 +109,22 @@
 	<dict>
 		<key>19428FFC-21DB-465A-8A78-8E6A67959A19</key>
 		<dict>
+			<key>xpos</key>
+			<real>695</real>
 			<key>ypos</key>
-			<real>10</real>
+			<real>440</real>
 		</dict>
 		<key>89DFEA82-655D-4ED5-B86D-2506309ABEBD</key>
 		<dict>
+			<key>xpos</key>
+			<real>495</real>
 			<key>ypos</key>
-			<real>10</real>
+			<real>440</real>
 		</dict>
 	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
 	<key>webaddress</key>
-	<string>https://github.com/frank-m/alfred-rdp-workflow</string>
+	<string>https://github.com/thanegill/alfred-windows-app</string>
 </dict>
 </plist>

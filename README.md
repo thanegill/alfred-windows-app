@@ -1,4 +1,4 @@
-# alfred-rdp-workflow
+# alfred-windows-app
 Simple Alfred workflow to search and open saved bookmarks from [Windows App](https://apps.apple.com/us/app/windows-app/id1295203466) — Microsoft's macOS remote desktop client, formerly named *Microsoft Remote Desktop*. Based on https://github.com/ctwise/alfred-workflows/tree/master/remote-desktop
 
 **Requires [Alfred](https://www.alfredapp.com/) with the Powerpack, and Windows App installed in `/Applications`.**
@@ -21,4 +21,4 @@ Two parts:
 # Installation
 You can compile it from source or download the latest binary from the releases page.
 
-https://github.com/frank-m/alfred-rdp-workflow/releases
+https://github.com/thanegill/alfred-windows-app/releases
