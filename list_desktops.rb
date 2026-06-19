@@ -24,9 +24,9 @@ def generate_feedback(bookmarks)
       feedback.add_item({ title: bookmark[0], subtitle: 'Open desktop', arg: bookmark[1].strip })
     end
   else
-    feedback.add_item({ title: 'No matching desktop found', subtitle: "Can't open desktop", arg: '##notfound##' })
+    feedback.add_item({ title: 'No matching desktop found', subtitle: "Can't open desktop", arg: '##notfound##', valid: false })
   end
-  puts feedback.to_xml
+  puts feedback.to_json
 end
 
 # An empty query matches every bookmark (include?('') is always true), so when

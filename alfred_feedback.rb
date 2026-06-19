@@ -1,52 +1,35 @@
-require "rexml/document"
+require 'json'
 
+# Builds the Script Filter JSON that Alfred expects back from a workflow input.
+# https://www.alfredapp.com/help/workflows/inputs/script-filter/json/
 class Feedback
-
   attr_accessor :items
-  @@time = Time.now.to_s
 
   def initialize
     @items = []
   end
 
   def add_item(opts = {})
-    opts[:subtitle] ||= ""
-    opts[:icon] ||= {:type => "default", :name => "icon.png"}
-    if opts[:uid].nil?
-      opts[:uid] ||= opts[:title]
-      opts[:uid] += @@time
-    end
-    opts[:arg] ||= opts[:title]
-    opts[:valid] ||= "yes"
-    opts[:autocomplete] ||= opts[:title]
-    opts[:type] ||= "default"
+    return if opts[:title].nil?
 
-    @items << opts unless opts[:title].nil?
+    item = {
+      title: opts[:title],
+      subtitle: opts[:subtitle] || '',
+      arg: opts[:arg] || opts[:title],
+      autocomplete: opts[:autocomplete] || opts[:title],
+      # Default to actionable; pass valid: false for informational rows.
+      valid: opts.fetch(:valid, true),
+      icon: { path: opts.dig(:icon, :name) || 'icon.png' }
+    }
+    item[:icon][:type] = 'fileicon' if opts.dig(:icon, :type) == 'fileicon'
+    item[:type] = 'file' if opts[:type] == 'file'
+
+    @items << item
   end
 
-  def to_xml(items = @items)
-    document = REXML::Element.new("items")
-    items.each do |item|
-      new_item = REXML::Element.new('item')
-      new_item.add_attributes({
-        'uid'          => item[:uid], 
-        'arg'          => item[:arg], 
-        'valid'        => item[:valid], 
-        'autocomplete' => item[:autocomplete]
-      })
-      new_item.add_attributes('type' => 'file') if item[:type] == "file"
-      
-      REXML::Element.new("title", new_item).text    = item[:title]
-      REXML::Element.new("subtitle", new_item).text = item[:subtitle]
-      
-      icon = REXML::Element.new("icon", new_item)
-      icon.text = item[:icon][:name]
-      icon.add_attributes('type' => 'fileicon') if item[:icon][:type] == "fileicon"
-      
-      document << new_item
-    end
-    
-    document.to_s
+  # No uid is emitted: Alfred preserves the order items are returned in only
+  # when uid is absent, which keeps the bookmarks in the app's own order.
+  def to_json(*_args)
+    JSON.pretty_generate(items: @items)
   end
-
 end
