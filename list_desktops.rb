@@ -29,12 +29,9 @@ def generate_feedback(bookmarks)
   puts feedback.to_xml
 end
 
-if !ARGV[0].empty?
-  query = ARGV[0].downcase
-  bookmark_list = export_bookmark_list(winApp)
-  bookmarks = find_bookmarks(bookmark_list, query)
-  generate_feedback(bookmarks)
-else
-  warn 'No Bookmark name received from Alfred, exiting...'
-  exit(1)
-end
+# An empty query matches every bookmark (include?('') is always true), so when
+# Alfred sends no search text we show the full list rather than bailing out.
+query = (ARGV[0] || '').downcase
+bookmark_list = export_bookmark_list(winApp)
+bookmarks = find_bookmarks(bookmark_list, query)
+generate_feedback(bookmarks)
