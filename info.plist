@@ -21,11 +21,11 @@
 	<key>createdby</key>
 	<string>Frank Muller</string>
 	<key>description</key>
-	<string>Open RDP Bookmark through Microsoft Remote Desktop</string>
+	<string>Open RDP Bookmark through Windows App (formerly Microsoft Remote Desktop)</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
-	<string>Microsoft Remote Desktop</string>
+	<string>Windows App</string>
 	<key>objects</key>
 	<array>
 		<dict>

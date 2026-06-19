@@ -1,13 +1,13 @@
 require './alfred_feedback'
 require 'csv'
 
-mrdpApp = '/Applications/Microsoft Remote Desktop.app/Contents/MacOS/Microsoft Remote Desktop'
+winApp = '/Applications/Windows App.app/Contents/MacOS/Windows App'
 
-def export_bookmark_list(mrdpApp)
-  raw_bookmarks = `'#{mrdpApp}' --script bookmark list`
+def export_bookmark_list(winApp)
+  raw_bookmarks = `'#{winApp}' --script bookmark list`
   CSV.parse(raw_bookmarks)
 rescue StandardError => e
-  warn "Something went wrong while exporting the bookmark list from app '#{mrdpApp}'."
+  warn "Something went wrong while exporting the bookmark list from app '#{winApp}'."
   warn 'Please see the exception below: '
   warn e.inspect
   exit(1)
@@ -31,7 +31,7 @@ end
 
 if !ARGV[0].empty?
   query = ARGV[0].downcase
-  bookmark_list = export_bookmark_list(mrdpApp)
+  bookmark_list = export_bookmark_list(winApp)
   bookmarks = find_bookmarks(bookmark_list, query)
   generate_feedback(bookmarks)
 else

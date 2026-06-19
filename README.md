@@ -1,17 +1,18 @@
 # alfred-rdp-workflow
-Simple workflow to open Bookmarks from Microsoft Remote Desktop, based on https://github.com/ctwise/alfred-workflows/tree/master/remote-desktop
-**This can only be used if you have Alfred (https://www.alfredapp.com/) installed and have the Powerpack as well.**
+Simple Alfred workflow to search and open saved bookmarks from [Windows App](https://apps.apple.com/us/app/windows-app/id1295203466) — Microsoft's macOS remote desktop client, formerly named *Microsoft Remote Desktop*. Based on https://github.com/ctwise/alfred-workflows/tree/master/remote-desktop
+
+**Requires [Alfred](https://www.alfredapp.com/) with the Powerpack, and Windows App installed in `/Applications`.**
 
 # Why?
-The version that was in the source repository was no longer maintained and was no longer functional. It also relied on using osascript to open 'Microsoft Remote Desktop', bring it to the foreground and simulate keypresses to open the session. This was not always working flawlessly.
+The version in the source repository was no longer maintained and no longer functional. It also relied on `osascript` to bring Microsoft Remote Desktop to the foreground and simulate keypresses to open a session, which did not always work reliably. This workflow instead drives Windows App through its [command line interface](https://learn.microsoft.com/en-us/windows-app/cli-macos), which exposes the same `--script bookmark` commands the old app used.
 
 # How?
 Two parts:
-- list_desktops.rb: Accepts one command line argument, the hostname, and uses the build in script option of the Microsoft Remote Desktop App to display the bookmarks in csv format. Then it searches for the hostname and returns that back to alfred via [alfred_feedback.rb](https://github.com/lrrfantasy/alfred-feedback-xml-generation). This allows the user to search through the different bookmarks.
+- [`list_desktops.rb`](list_desktops.rb): Accepts one argument, the search query, and runs `--script bookmark list` to get the saved bookmarks as CSV. It filters by query and returns matches to Alfred via [`alfred_feedback.rb`](alfred_feedback.rb), letting you search through your bookmarks.
 
-![rdp alfread search](https://imgur.com/ubdLdBw.gif)
+![rdp alfred search](https://imgur.com/ubdLdBw.gif)
 
-- open_desktop.rb: Accepts one command line argument, the ID of the bookmark, and uses the build in `--script bookmark export` option of the Microsoft Remote Desktop App to get the rdp:// url. It then calls the rdp url and the session opens.
+- [`open_desktop.rb`](open_desktop.rb): Accepts one argument, the ID of the selected bookmark, and runs `--script bookmark export <id> --uri` to get the `rdp://` URI. It then `open`s the URI and Windows App launches the session.
 
 # Todo:
 
