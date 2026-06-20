@@ -25,7 +25,7 @@ Everything lives in [`windows_app.rb`](windows_app.rb), which Alfred invokes wit
 
 The file is organized into a few units:
 - `RemoteTarget` parses an ad-hoc `[user@]host[:port]` target and builds the `rdp://` URI. Windows App rejects a minimal `full address`+`username` URI with *"The URL is not valid"*, so it emits the app's full default attribute set (captured from `--script bookmark export`) with `full address`, the optional port, and `username` substituted in.
-- `WindowsApp` wraps the binary (`bookmarks`, `export_uri`) and the OS `open` (`open_uri`).
+- `WindowsApp` wraps the binary (`bookmarks`, `export_uri`) and the OS `open` (`open_uri`). It locates the binary with `WINDOWS_APP` → the standard `/Applications` path → a Spotlight (`mdfind`) lookup by bundle id `com.microsoft.rdc.macos` → the standard path as a fallback; the fast common case avoids any subprocess since the Script Filter runs per keystroke. Opening uses `open -b com.microsoft.rdc.macos` so the session lands in Windows App even if another app is registered for the `rdp://` scheme.
 - `Workflow` is the two commands (`list`/`open`) built on those.
 - `Feedback` builds the Script Filter JSON.
 

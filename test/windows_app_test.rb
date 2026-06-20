@@ -1,4 +1,5 @@
 require 'minitest/autorun'
+require 'minitest/mock'
 require_relative '../windows_app'
 
 class RemoteTargetTest < Minitest::Test
@@ -110,6 +111,61 @@ class FakeApp
 
   def open_uri(uri)
     @opened << uri
+  end
+end
+
+class WindowsAppResolveTest < Minitest::Test
+  def around_env
+    saved = ENV['WINDOWS_APP']
+    ENV.delete('WINDOWS_APP')
+    yield
+  ensure
+    saved.nil? ? ENV.delete('WINDOWS_APP') : ENV['WINDOWS_APP'] = saved
+  end
+
+  def test_env_override_wins
+    around_env do
+      ENV['WINDOWS_APP'] = '/custom/win'
+      assert_equal '/custom/win', WindowsApp.resolve_path
+    end
+  end
+
+  def test_standard_path_used_when_present
+    around_env do
+      File.stub(:executable?, ->(p) { p == WindowsApp::STANDARD_PATH }) do
+        assert_equal WindowsApp::STANDARD_PATH, WindowsApp.resolve_path
+      end
+    end
+  end
+
+  def test_spotlight_result_used_when_standard_missing
+    around_env do
+      File.stub(:executable?, false) do
+        WindowsApp.stub(:locate_via_spotlight, '/Users/me/Applications/Windows App.app/Contents/MacOS/Windows App') do
+          assert_equal '/Users/me/Applications/Windows App.app/Contents/MacOS/Windows App',
+                       WindowsApp.resolve_path
+        end
+      end
+    end
+  end
+
+  def test_falls_back_to_standard_path_when_nothing_found
+    around_env do
+      File.stub(:executable?, false) do
+        WindowsApp.stub(:locate_via_spotlight, nil) do
+          assert_equal WindowsApp::STANDARD_PATH, WindowsApp.resolve_path
+        end
+      end
+    end
+  end
+end
+
+class WindowsAppOpenTest < Minitest::Test
+  def test_open_command_forces_windows_app_and_adds_empty_authority
+    # -b <bundle id> sends the URL to Windows App regardless of which app owns
+    # the rdp:// scheme; the extra slash gives the URL an empty authority.
+    cmd = WindowsApp.new('/x').open_command('rdp://full%20address=s%3Ahost')
+    assert_equal ['open', '-b', 'com.microsoft.rdc.macos', 'rdp:///full%20address=s%3Ahost'], cmd
   end
 end
 

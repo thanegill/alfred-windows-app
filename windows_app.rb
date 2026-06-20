@@ -175,8 +175,43 @@ end
 # to point at any executable that speaks the same `--script bookmark` interface
 # (e.g. test/fake-windows-app).
 class WindowsApp
-  def initialize(path = ENV.fetch('WINDOWS_APP', '/Applications/Windows App.app/Contents/MacOS/Windows App'))
+  # Where the app installs by default; also the fallback for error messages.
+  STANDARD_PATH = '/Applications/Windows App.app/Contents/MacOS/Windows App'.freeze
+  # Windows App kept Microsoft Remote Desktop's bundle identifier.
+  BUNDLE_ID = 'com.microsoft.rdc.macos'.freeze
+
+  def initialize(path = self.class.resolve_path)
     @path = path
+  end
+
+  # Locate the Windows App executable, preferring speed: the Script Filter runs
+  # this on every keystroke, so we avoid subprocesses in the common case.
+  #   1. WINDOWS_APP override (e.g. the test stub)
+  #   2. the standard /Applications path, if present (a plain stat)
+  #   3. a Spotlight lookup by bundle id (handles ~/Applications, renames)
+  #   4. the standard path as a last resort, so errors name a real location
+  def self.resolve_path
+    env = ENV['WINDOWS_APP']
+    return env if env && !env.empty?
+    return STANDARD_PATH if File.executable?(STANDARD_PATH)
+
+    locate_via_spotlight || STANDARD_PATH
+  end
+
+  # The executable inside the first installed Windows App bundle Spotlight knows
+  # about, or nil. Reads CFBundleExecutable so a future rename still resolves.
+  def self.locate_via_spotlight
+    `mdfind "kMDItemCFBundleIdentifier == '#{BUNDLE_ID}'" 2>/dev/null`
+      .each_line
+      .map(&:strip)
+      .reject(&:empty?)
+      .map { |bundle| File.join(bundle, 'Contents', 'MacOS', bundle_executable(bundle)) }
+      .find { |exe| File.executable?(exe) }
+  end
+
+  def self.bundle_executable(bundle)
+    name = `defaults read "#{bundle}/Contents/Info" CFBundleExecutable 2>/dev/null`.strip
+    name.empty? ? 'Windows App' : name
   end
 
   # Saved bookmarks as CSV rows of [name, id].
@@ -199,16 +234,22 @@ class WindowsApp
     exit(1)
   end
 
-  # Hand an rdp:// URI to Windows App. `open` needs an empty authority
-  # (rdp:///…) for the query string to route correctly.
+  # Hand an rdp:// URI to Windows App.
   def open_uri(uri)
-    `open '#{uri.strip.gsub('rdp://', 'rdp:///')}'`
+    system(*open_command(uri))
   rescue StandardError => e
-    warn "Something went wrong while calling \"open #{uri.strip}\"."
-    warn "Perhaps Windows App is not registered to open 'rdp://' uris?"
+    warn "Something went wrong while opening #{uri.strip} in Windows App."
+    warn "Perhaps Windows App (#{BUNDLE_ID}) is not installed?"
     warn 'Please see the exception below: '
     warn e.inspect
     exit(1)
+  end
+
+  # The `open` invocation. `-b <bundle id>` forces Windows App rather than
+  # whatever app is registered for the rdp:// scheme. The extra slash gives the
+  # URL an empty authority so the query string isn't parsed as a host.
+  def open_command(uri)
+    ['open', '-b', BUNDLE_ID, uri.strip.gsub('rdp://', 'rdp:///')]
   end
 end
 
