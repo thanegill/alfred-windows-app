@@ -34,8 +34,7 @@ jobs:
         # dev-only and repo-meta files (test/, screenshot.png, .github, ...).
         run: |
           file="Windows-App-${{ github.ref_name }}.alfredworkflow"
-          zip -j "$file" info.plist alfred_feedback.rb list_desktops.rb \
-                         open_desktop.rb remote_target.rb icon.png README.md LICENSE
+          zip -j "$file" info.plist windows_app.rb icon.png README.md LICENSE
           echo "workflow_file=$file" >> "$GITHUB_OUTPUT"
 
       - name: Create release and attach workflow

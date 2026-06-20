@@ -38,7 +38,7 @@
 				<key>escaping</key>
 				<integer>4</integer>
 				<key>script</key>
-				<string>ruby open_desktop.rb "{query}"</string>
+				<string>ruby windows_app.rb open "{query}"</string>
 				<key>scriptargtype</key>
 				<integer>0</integer>
 				<key>scriptfile</key>
@@ -81,7 +81,7 @@
 				<key>runningsubtext</key>
 				<string>Loading...</string>
 				<key>script</key>
-				<string>ruby list_desktops.rb "{query}"</string>
+				<string>ruby windows_app.rb list "{query}"</string>
 				<key>scriptargtype</key>
 				<integer>0</integer>
 				<key>scriptfile</key>
@@ -124,6 +124,8 @@
 	</dict>
 	<key>userconfigurationconfig</key>
 	<array/>
+	<key>version</key>
+	<string></string>
 	<key>webaddress</key>
 	<string>https://github.com/thanegill/alfred-windows-app</string>
 </dict>

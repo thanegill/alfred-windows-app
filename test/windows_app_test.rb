@@ -1,5 +1,5 @@
 require 'minitest/autorun'
-require_relative '../remote_target'
+require_relative '../windows_app'
 
 class RemoteTargetTest < Minitest::Test
   # --- parse ---
@@ -87,5 +87,83 @@ class RemoteTargetTest < Minitest::Test
 
   def test_uri_for_blank_returns_nil
     assert_nil RemoteTarget.uri_for('')
+  end
+end
+
+# A stand-in WindowsApp so Workflow can be tested without the real binary or the
+# OS `open`. Records the URIs it was asked to open.
+class FakeApp
+  attr_reader :opened, :exported_id
+
+  def initialize(bookmarks: [], export_uri: 'rdp://full%20address=s%3Ademo')
+    @bookmarks = bookmarks
+    @export_uri = export_uri
+    @opened = []
+  end
+
+  attr_reader :bookmarks
+
+  def export_uri(id)
+    @exported_id = id
+    @export_uri
+  end
+
+  def open_uri(uri)
+    @opened << uri
+  end
+end
+
+class WorkflowTest < Minitest::Test
+  BOOKMARKS = [['Prod Web', 'id-1'], ['Dev Box', 'id-2']].freeze
+
+  def items(json)
+    JSON.parse(json)['items']
+  end
+
+  # --- list ---
+
+  def test_list_filters_bookmarks_by_query
+    json = Workflow.new(FakeApp.new(bookmarks: BOOKMARKS)).list('prod')
+    titles = items(json).map { |i| i['title'] }
+    assert_includes titles, 'Prod Web'
+    refute_includes titles, 'Dev Box'
+  end
+
+  def test_list_empty_query_returns_all_and_no_connect_item
+    json = Workflow.new(FakeApp.new(bookmarks: BOOKMARKS)).list('')
+    titles = items(json).map { |i| i['title'] }
+    assert_equal ['Prod Web', 'Dev Box'], titles
+    refute(titles.any? { |t| t.start_with?('Connect to ') })
+  end
+
+  def test_list_appends_adhoc_connect_item
+    json = Workflow.new(FakeApp.new(bookmarks: BOOKMARKS)).list('me@192.168.4.3')
+    connect = items(json).find { |i| i['title'] == 'Connect to me@192.168.4.3' }
+    refute_nil connect
+    assert_equal 'adhoc:me@192.168.4.3', connect['arg']
+  end
+
+  def test_list_no_matches_and_no_target_shows_not_found
+    # A query of only whitespace matches no bookmark and is not a target.
+    json = Workflow.new(FakeApp.new(bookmarks: BOOKMARKS)).list('   ')
+    titles = items(json).map { |i| i['title'] }
+    assert_equal ['No matching desktop found'], titles
+  end
+
+  # --- open ---
+
+  def test_open_adhoc_builds_and_opens_uri
+    app = FakeApp.new
+    Workflow.new(app).open('adhoc:me@192.168.4.3:3390')
+    assert_equal 1, app.opened.size
+    assert_includes app.opened.first, '&full%20address=s%3A192.168.4.3%3A3390'
+    assert_includes app.opened.first, '&username=s%3Ame'
+  end
+
+  def test_open_bookmark_exports_then_opens
+    app = FakeApp.new(export_uri: 'rdp://full%20address=s%3Ahost')
+    Workflow.new(app).open('id-42')
+    assert_equal 'id-42', app.exported_id
+    assert_equal ['rdp://full%20address=s%3Ahost'], app.opened
   end
 end
