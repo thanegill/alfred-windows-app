@@ -2,6 +2,7 @@
 
 require 'minitest/autorun'
 require 'minitest/mock'
+require 'rexml/document'
 require_relative '../windows_app'
 
 class RemoteTargetTest < Minitest::Test
@@ -221,5 +222,57 @@ class WorkflowTest < Minitest::Test
     Workflow.new(app).open('id-42')
     assert_equal 'id-42', app.exported_id
     assert_equal ['rdp://full%20address=s%3Ahost'], app.opened
+  end
+end
+
+# Guards the workflow's info.plist against an Alfred re-save that breaks the
+# scripts. We parse the plist with REXML (rather than plutil) so the check runs
+# on any platform, not just macOS.
+class InfoPlistTest < Minitest::Test
+  PLIST = File.expand_path('../info.plist', __dir__)
+
+  # Convert a plist <dict>/<array>/scalar element into the equivalent Ruby
+  # value. A <dict> is alternating <key>/value siblings, so we pair the keys
+  # with the non-key elements in document order.
+  def plist_value(element)
+    case element.name
+    when 'string'  then element.text.to_s
+    when 'integer' then element.text.to_i
+    when 'real'    then element.text.to_f
+    when 'true'    then true
+    when 'false'   then false
+    when 'array'   then element.elements.map { |child| plist_value(child) }
+    when 'dict'
+      children = element.elements.to_a
+      keys = children.select { |child| child.name == 'key' }.map(&:text)
+      values = children.reject { |child| child.name == 'key' }.map { |child| plist_value(child) }
+      keys.zip(values).to_h
+    end
+  end
+
+  def info_plist
+    document = REXML::Document.new(File.read(PLIST))
+    plist_value(document.root.elements['dict'])
+  end
+
+  def test_bundle_id
+    assert_equal 'com.thanegill.alfred-windows-app', info_plist['bundleid']
+  end
+
+  # Regression guard: in argv mode (scriptargtype 1) Alfred passes the query as
+  # a shell argument, so the script MUST forward it with "$@"/$1. Saving the
+  # workflow in Alfred flips it to argv mode but leaves the script as
+  # `ruby windows_app.rb list`, silently dropping the query so filtering and
+  # ad-hoc connect break.
+  def test_argv_scripts_forward_their_argument
+    configs = info_plist['objects'].map { |object| object['config'] }.compact
+    argv_scripts = configs.select { |config| config['scriptargtype'] == 1 && config.key?('script') }
+                          .map { |config| config['script'] }
+
+    refute_empty argv_scripts, 'expected at least one argv-mode script in info.plist'
+    argv_scripts.each do |script|
+      assert_match(/\$[@1]/, script,
+                   "argv-mode script must forward its argument with \"$@\": #{script.inspect}")
+    end
   end
 end
