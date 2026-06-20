@@ -1,0 +1,16 @@
+AllCops:
+  TargetRubyVersion: 2.6 # ships with macOS; the workflow runs on system Ruby
+  NewCops: enable
+
+# The DEFAULT_PARAMS heredoc is a long, intentionally verbatim attribute list.
+Layout/LineLength:
+  AllowedPatterns:
+    - '^\s' # heredoc / data lines
+
+Metrics/BlockLength:
+  Exclude:
+    - 'test/**/*' # minitest test classes are naturally long
+
+# The default of 10 splits cohesive methods (e.g. build_feedback) needlessly.
+Metrics/MethodLength:
+  Max: 15

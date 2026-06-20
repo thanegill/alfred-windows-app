@@ -38,9 +38,11 @@ Run the unit tests on the system Ruby:
 ruby test/windows_app_test.rb
 ```
 
-## Todo:
+Lint with [RuboCop](https://rubocop.org/) (config in [`.rubocop.yml`](.rubocop.yml)). The system Ruby (2.6) is too old for current RuboCop, so run it through a newer Ruby — e.g. via Nix:
 
-- Add linting
+```sh
+nix-shell -p rubocop --run rubocop
+```
 
 ## Installation
 Download the latest [`Windows-App.alfredworkflow`](https://github.com/thanegill/alfred-windows-app/releases/latest) and double-click it to import into Alfred. It runs on the system Ruby that ships with macOS, so there's nothing to build.

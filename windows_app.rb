@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'csv'
 require 'cgi'
@@ -18,22 +20,16 @@ class Feedback
     @items = []
   end
 
-  def add_item(opts = {})
-    return if opts[:title].nil?
-
-    item = {
-      title: opts[:title],
-      subtitle: opts[:subtitle] || '',
-      arg: opts[:arg] || opts[:title],
-      autocomplete: opts[:autocomplete] || opts[:title],
-      # Default to actionable; pass valid: false for informational rows.
-      valid: opts.fetch(:valid, true),
-      icon: { path: opts.dig(:icon, :name) || 'icon.png' }
+  # Pass valid: false for informational rows that shouldn't action.
+  def add_item(title:, subtitle: '', arg: nil, valid: true)
+    @items << {
+      title: title,
+      subtitle: subtitle,
+      arg: arg || title,
+      autocomplete: title,
+      valid: valid,
+      icon: { path: 'icon.png' }
     }
-    item[:icon][:type] = 'fileicon' if opts.dig(:icon, :type) == 'fileicon'
-    item[:type] = 'file' if opts[:type] == 'file'
-
-    @items << item
   end
 
   # No uid is emitted: Alfred preserves the order items are returned in only
@@ -123,25 +119,27 @@ module RemoteTarget
 
   # Parse "[user@]host[:port]" into its parts, or nil when there is no host.
   def parse(query)
-    rest = query.to_s.strip
-    return nil if rest.empty?
-
-    username = nil
-    if rest.include?('@')
-      username, rest = rest.split('@', 2)
-      username = nil if username.empty?
-    end
-
-    host, _, port = rest.rpartition(':')
-    if host.empty? # no ':' present, so rpartition put everything in `port`
-      host = port
-      port = nil
-    end
-    port = nil if port && port.empty?
-
+    username, rest = split_username(query.to_s.strip)
+    host, port = split_host_port(rest)
     return nil if host.empty?
 
     { username: username, host: host, port: port }
+  end
+
+  # Split a leading "user@" off, returning [username_or_nil, rest].
+  def split_username(text)
+    return [nil, text] unless text.include?('@')
+
+    username, rest = text.split('@', 2)
+    [username.empty? ? nil : username, rest]
+  end
+
+  # Split a trailing ":port" off, returning [host, port_or_nil].
+  def split_host_port(text)
+    host, _, port = text.rpartition(':')
+    return [port, nil] if host.empty? # no ':' present; rpartition put it all in `port`
+
+    [host, port.empty? ? nil : port]
   end
 
   # Build the rdp:// URI from parsed parts: the app's default attribute set plus
@@ -152,7 +150,7 @@ module RemoteTarget
     params << "full address:s:#{port ? "#{host}:#{port}" : host}"
     params << "username:s:#{username}" if username
 
-    'rdp://' + params.map { |line| encode_param(line) }.join('&')
+    "rdp://#{params.map { |line| encode_param(line) }.join('&')}"
   end
 
   # Encode one "key:type:value" line as `key=type%3Avalue`, matching the app's
@@ -176,9 +174,9 @@ end
 # (e.g. test/fake-windows-app).
 class WindowsApp
   # Where the app installs by default; also the fallback for error messages.
-  STANDARD_PATH = '/Applications/Windows App.app/Contents/MacOS/Windows App'.freeze
+  STANDARD_PATH = '/Applications/Windows App.app/Contents/MacOS/Windows App'
   # Windows App kept Microsoft Remote Desktop's bundle identifier.
-  BUNDLE_ID = 'com.microsoft.rdc.macos'.freeze
+  BUNDLE_ID = 'com.microsoft.rdc.macos'
 
   def initialize(path = self.class.resolve_path)
     @path = path
@@ -191,7 +189,7 @@ class WindowsApp
   #   3. a Spotlight lookup by bundle id (handles ~/Applications, renames)
   #   4. the standard path as a last resort, so errors name a real location
   def self.resolve_path
-    env = ENV['WINDOWS_APP']
+    env = ENV.fetch('WINDOWS_APP', nil)
     return env if env && !env.empty?
     return STANDARD_PATH if File.executable?(STANDARD_PATH)
 
@@ -201,7 +199,7 @@ class WindowsApp
   # The executable inside the first installed Windows App bundle Spotlight knows
   # about, or nil. Reads CFBundleExecutable so a future rename still resolves.
   def self.locate_via_spotlight
-    `mdfind "kMDItemCFBundleIdentifier == '#{BUNDLE_ID}'" 2>/dev/null`
+    capture('mdfind', "kMDItemCFBundleIdentifier == '#{BUNDLE_ID}'")
       .each_line
       .map(&:strip)
       .reject(&:empty?)
@@ -210,46 +208,51 @@ class WindowsApp
   end
 
   def self.bundle_executable(bundle)
-    name = `defaults read "#{bundle}/Contents/Info" CFBundleExecutable 2>/dev/null`.strip
+    name = capture('defaults', 'read', "#{bundle}/Contents/Info", 'CFBundleExecutable').strip
     name.empty? ? 'Windows App' : name
+  end
+
+  # Run a command (no shell, so arguments need no escaping) and return its
+  # stdout; stderr is discarded and failures yield ''.
+  def self.capture(*command)
+    IO.popen(command, err: File::NULL, &:read) || ''
+  rescue SystemCallError
+    ''
   end
 
   # Saved bookmarks as CSV rows of [name, id].
   def bookmarks
-    CSV.parse(`'#{@path}' --script bookmark list`)
+    CSV.parse(run('--script', 'bookmark', 'list'))
   rescue StandardError => e
-    warn "Something went wrong while exporting the bookmark list from app '#{@path}'."
-    warn 'Please see the exception below: '
-    warn e.inspect
-    exit(1)
+    abort "Couldn't list bookmarks from '#{@path}': #{e.inspect}"
   end
 
   # The rdp:// URI for a saved bookmark id.
   def export_uri(id)
-    `'#{@path}' --script bookmark export #{id} --uri`
+    run('--script', 'bookmark', 'export', id, '--uri')
   rescue StandardError => e
-    warn "Something went wrong while exporting the bookmark with ID #{id} from app #{@path}."
-    warn 'Please see the exception below: '
-    warn e.inspect
-    exit(1)
+    abort "Couldn't export bookmark #{id.inspect} from '#{@path}': #{e.inspect}"
   end
 
   # Hand an rdp:// URI to Windows App.
   def open_uri(uri)
     system(*open_command(uri))
   rescue StandardError => e
-    warn "Something went wrong while opening #{uri.strip} in Windows App."
-    warn "Perhaps Windows App (#{BUNDLE_ID}) is not installed?"
-    warn 'Please see the exception below: '
-    warn e.inspect
-    exit(1)
+    abort "Couldn't open #{uri.strip} in Windows App (#{BUNDLE_ID}); is it installed? #{e.inspect}"
   end
 
   # The `open` invocation. `-b <bundle id>` forces Windows App rather than
   # whatever app is registered for the rdp:// scheme. The extra slash gives the
   # URL an empty authority so the query string isn't parsed as a host.
   def open_command(uri)
-    ['open', '-b', BUNDLE_ID, uri.strip.gsub('rdp://', 'rdp:///')]
+    ['open', '-b', BUNDLE_ID, uri.strip.sub('rdp://', 'rdp:///')]
+  end
+
+  private
+
+  # Run the Windows App binary with args (no shell) and return its stdout.
+  def run(*args)
+    IO.popen([@path, *args], &:read)
   end
 end
 
@@ -270,24 +273,24 @@ class Workflow
   # Open the selected item: an "adhoc:<target>" token or a saved bookmark id.
   def open(arg)
     if arg.nil? || arg.empty?
-      warn 'No bookmark ID or target received from Alfred, exiting...'
-      exit(1)
+      abort 'No bookmark ID or target received from Alfred, exiting...'
     elsif arg.start_with?('adhoc:')
-      # Ad-hoc target like "adhoc:me@192.168.4.3:3390": build the rdp:// URI
-      # here (rather than receiving a pre-built URI through Alfred) and open it
-      # directly, without a bookmark lookup.
-      uri = RemoteTarget.uri_for(arg.delete_prefix('adhoc:'))
-      if uri.nil?
-        warn "Could not parse ad-hoc target from #{arg.inspect}, exiting..."
-        exit(1)
-      end
-      @app.open_uri(uri)
+      @app.open_uri(adhoc_uri(arg))
     else
       @app.open_uri(@app.export_uri(arg))
     end
   end
 
   private
+
+  # Build the rdp:// URI for an "adhoc:<target>" token. We receive the bare
+  # target (not a pre-built URI) so the URI's "&"/"%" characters are produced
+  # here rather than passing through Alfred's argument handling, which mangles
+  # them.
+  def adhoc_uri(arg)
+    RemoteTarget.uri_for(arg.delete_prefix('adhoc:')) ||
+      abort("Could not parse ad-hoc target from #{arg.inspect}, exiting...")
+  end
 
   def find_bookmarks(bookmark_list, query)
     bookmark_list.find_all { |bookmark| bookmark[0].downcase.include?(query) }
@@ -302,16 +305,14 @@ class Workflow
       feedback.add_item(title: bookmark[0], subtitle: 'Open desktop', arg: bookmark[1].strip)
     end
 
-    # When the query parses as [user@]host[:port], offer a direct ad-hoc
-    # connection alongside any matching bookmarks. The arg is an "adhoc:" token
-    # carrying the raw target; #open builds the rdp:// URI from it. We pass the
-    # target rather than a pre-built URI so the URI's "&"/"%" characters never
-    # travel through Alfred's argument handling, which mangles them.
     target = query.strip
-    feedback.add_item(title: "Connect to #{target}", subtitle: 'Open ad-hoc desktop', arg: "adhoc:#{target}") if RemoteTarget.parse(query)
-
-    if bookmarks.empty? && RemoteTarget.parse(query).nil?
-      feedback.add_item(title: 'No matching desktop found', subtitle: "Can't open desktop", arg: '##notfound##', valid: false)
+    if RemoteTarget.parse(query)
+      # Offer a direct ad-hoc connection alongside any matching bookmarks.
+      feedback.add_item(title: "Connect to #{target}", subtitle: 'Open ad-hoc desktop',
+                        arg: "adhoc:#{target}")
+    elsif bookmarks.empty?
+      feedback.add_item(title: 'No matching desktop found', subtitle: "Can't open desktop",
+                        arg: '##notfound##', valid: false)
     end
 
     feedback.to_json
@@ -328,7 +329,6 @@ if $PROGRAM_NAME == __FILE__
   when 'open'
     workflow.open(ARGV[1])
   else
-    warn "Usage: #{$PROGRAM_NAME} {list|open} <arg>"
-    exit(1)
+    abort "Usage: #{$PROGRAM_NAME} {list|open} <arg>"
   end
 end

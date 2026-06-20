@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'minitest/autorun'
 require 'minitest/mock'
 require_relative '../windows_app'
@@ -74,7 +76,7 @@ class RemoteTargetTest < Minitest::Test
 
   def test_build_uri_omits_username_when_absent
     uri = RemoteTarget.build_uri(username: nil, host: 'host01', port: nil)
-    # Note: the default set contains "gatewayusername="; "&username=" is distinct.
+    # NOTE: the default set contains "gatewayusername="; "&username=" is distinct.
     refute_includes uri, '&username='
   end
 
@@ -94,15 +96,13 @@ end
 # A stand-in WindowsApp so Workflow can be tested without the real binary or the
 # OS `open`. Records the URIs it was asked to open.
 class FakeApp
-  attr_reader :opened, :exported_id
+  attr_reader :opened, :exported_id, :bookmarks
 
   def initialize(bookmarks: [], export_uri: 'rdp://full%20address=s%3Ademo')
     @bookmarks = bookmarks
     @export_uri = export_uri
     @opened = []
   end
-
-  attr_reader :bookmarks
 
   def export_uri(id)
     @exported_id = id
@@ -116,7 +116,7 @@ end
 
 class WindowsAppResolveTest < Minitest::Test
   def around_env
-    saved = ENV['WINDOWS_APP']
+    saved = ENV.fetch('WINDOWS_APP', nil)
     ENV.delete('WINDOWS_APP')
     yield
   ensure
